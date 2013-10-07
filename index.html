@@ -19,12 +19,10 @@
         left: 0px;
         top: 0px;
         box-shadow: black 0px 0px 3px;
+        -webkit-transition: all 2s;
       }
       .node.active{
         border: 1px solid;
-      }
-      .animated {
-        -webkit-transition: all 2s;
       }
       #controls{ position: absolute; bottom: 10px; right: 10px;}
       #source{
@@ -38,6 +36,9 @@
       }
       svg.pie{
         position: absolute;
+      }
+      svg.pie path{
+        stroke: none;
       }
     </style>
   </head>
@@ -103,34 +104,34 @@
           gotEmployees(employees)
         })
       })
-      vis.on('mouseover', function(d){
-        if(!node) return
-        node.each(function(d, i){  $(this).removeClass('animated') })
-      }).on("mousemove", function(d){
-        var m = d3.mouse(this)
-        m[1] += 40
-        fisheye.focus(m)
-        if(!node) return
-        node.each(function(d, i){
-          var prev_z = d.fisheye && d.fisheye.z || 1
-          d.fisheye = fisheye(d)
-          d.fisheye.prev_z = prev_z
-        })
-        .filter(function(d){ return d.fisheye.z !== d.fisheye.prev_z })
-        .call(setFisheyePos)
-        .call(function(node){
-          var max, max_el
-          node.each(function(d){
-            if( !max || d.fisheye.z > max.fisheye.z) { max = d; max_el = this }
-          })
-          if(topNode !== max_el) updateTopNode(max_el)
-        })
-      }).on('mouseleave', function(d){
-        node.each(function(d, i){ d.fisheye = {x: d.x, y: d.y, z: 1} })
-        .filter(function(d){ return d.fisheye.z !== d.fisheye.prev_z })
-        .call(setFisheyePos)
-        updateTopNode(null)
-      })
+      // vis.on('mouseover', function(d){
+      //   if(!node) return
+      //   //node.each(function(d, i){  $(this).removeClass('animated') })
+      // }).on("mousemove", function(d){
+      //   var m = d3.mouse(this)
+      //   m[1] += 40
+      //   fisheye.focus(m)
+      //   if(!node) return
+      //   node.each(function(d, i){
+      //     var prev_z = d.fisheye && d.fisheye.z || 1
+      //     d.fisheye = fisheye(d)
+      //     d.fisheye.prev_z = prev_z
+      //   })
+      //   .filter(function(d){ return d.fisheye.z !== d.fisheye.prev_z })
+      //   .call(setFisheyePos)
+      //   .call(function(node){
+      //     var max, max_el
+      //     node.each(function(d){
+      //       if( !max || d.fisheye.z > max.fisheye.z) { max = d; max_el = this }
+      //     })
+      //     if(topNode !== max_el) updateTopNode(max_el)
+      //   })
+      // }).on('mouseleave', function(d){
+      //   node.each(function(d, i){ d.fisheye = {x: d.x, y: d.y, z: 1} })
+      //   .filter(function(d){ return d.fisheye.z !== d.fisheye.prev_z })
+      //   .call(setFisheyePos)
+      //   updateTopNode(null)
+      // })
       function gotEmployees(employees){
         max = d3.max(employees, function(d){ return d.TCOE })
         radiusScale.domain([0, max])
@@ -188,9 +189,10 @@
         return pie.node()
       }
       function updatePos(node){
-        return node.style('-webkit-transform', function(d, i){
+        return node.style('z-index', function(d){ return 10000 - d.order })
+        .style('-webkit-transform', function(d, i){
           return 'translate(' + (d.x - d.r) + 'px,' + (d.y - d.r) + 'px)'
-        }).style('z-index', function(d){ return 10000 - d.order })
+        })
       }
       function setFisheyePos(node){
         return node.style('-webkit-transform', function(d, i){
@@ -226,6 +228,7 @@
         return node.call(grid).call(updatePos)
       }
       function sortByTitle(node){
+        console.log('start sort')
         var nest = d3.nest()
           .key(function(d){ return d.Title })
           .sortKeys(d3.ascending)
@@ -237,8 +240,13 @@
           leaf.values.forEach(function(leaf){ data = data.concat(leaf.values) })
         })
         data.forEach(function(d, i){ d.order = i })
+        console.log('end sort')
         node.data(data, dataKey)
-        return node.call(grid).call(updatePos)
+        console.log('set node.data')
+        grid(node)
+        console.log('grid')
+        updatePos(node)
+        console.log('update pos')
       }
       // listen for sort button clicks
       var sortMetric = 'Income'
@@ -246,9 +254,13 @@
         var newMetric = $(this).data('metric')
         if(sortMetric === newMetric) return
         sortMetric = newMetric
-        if(sortMetric === 'title') sortByTitle(node)
-        else sortNodesByMetric(sortMetric, node)
+        nextTick(function(){
+          if(sortMetric === 'title') sortByTitle(node)
+          else sortNodesByMetric(sortMetric, node)
+          console.log('done!')
+        })
       })
+      function nextTick(cb){ setTimeout(cb, 0) }
     </script>
   </body>
 </html>
