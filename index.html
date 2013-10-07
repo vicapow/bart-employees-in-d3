@@ -1,0 +1,254 @@
+<!doctype HTML>
+<html>
+  <head>
+    <script src="js/d3.js" charset="utf-8"></script>
+    <script src="js/fisheye.js"></script>
+    <script src="js/jquery.js"></script>
+    <style>
+      body{ 
+        margin: 0;
+        font-family: helvetica;
+      }
+      .vis {
+        background-color: white;
+      }
+      .node {
+        background-color: black;
+        border-radius: 800px;
+        position: absolute;
+        left: 0px;
+        top: 0px;
+        box-shadow: black 0px 0px 3px;
+      }
+      .node.active{
+        border: 1px solid;
+      }
+      .animated {
+        -webkit-transition: all 2s;
+      }
+      #controls{ position: absolute; bottom: 10px; right: 10px;}
+      #source{
+        position: absolute;
+        left: 10px;
+        bottom: 10px;
+      }
+      #title{
+        margin: 0;
+        text-align: center;
+      }
+      svg.pie{
+        position: absolute;
+      }
+    </style>
+  </head>
+  <body>
+    <h1 id="title"> Salary of every BART employee </h1>
+    <div id="controls">
+      <p>sort by: 
+        <button class="sort-by" data-metric="Base">base</button>
+        <button class="sort-by" data-metric="OT">overtime</button>
+        <button class="sort-by" data-metric="MDV">medical, dental, vision</button>
+        <button class="sort-by" data-metric="ER">employer contributions to pension</button>
+        <button class="sort-by" data-metric="EE">employee contributions pension</button>
+        <button class="sort-by" data-metric="DC">401(k)</button>
+        <button class="sort-by" data-metric="Misc">Miscellaneous</button>
+        <button class="sort-by" data-metric="Other">other</button>
+        <button class="sort-by" data-metric="TCOE">Total cost of employee</button>
+        <button class="sort-by" data-metric="title">title</button>
+      </p>
+    </div>
+    <div id="source"> 
+      source: <a href="https://github.com/enjalot/bart#data-links"> Employee Salaries </a>
+    </div>
+    <script>
+      var width = window.innerWidth, height = window.innerHeight
+        , vis = d3.select('body').append('div').attr('class', 'vis')
+          .style({ width: width + 'px', height: height + 'px' })
+        , node, max, margin = 80, max_area = 400
+        , color = d3.scale.category20()
+        , ident = function(d){ return d }
+        , radiusScale = d3.scale.linear().range([0, max_area])
+        , areaToRadius = function(area){ return Math.sqrt(area / Math.PI) }
+        , radius = function(d){ return areaToRadius(radiusScale(d.TCOE)) }
+        , x = d3.scale.linear().domain([0, 100]).range([margin, width - margin])
+        , y = d3.scale.linear().domain([0, 30]).range([margin, height - margin])
+        , dataKey = function(d){ return d.id }
+        , sortBy = function(by){ return function(a, b){ 
+            if(a[by] === b[by]) return 0; else if(a[by] > b[by]) return -1;
+            return 1;
+        }}
+        , money = d3.format('$,04d')
+        , fisheye = d3.fisheye.circular().radius(100).distortion(5)
+        , id = 0, order = 0
+        , format = function(d){
+            // Name,Title,Base,OT,Other,MDV,ER,EE,DC,Misc,TCOE,,Average,
+            var numKeys = ['Base', 'OT', 'Other', 'MDV', 'ER', 'EE', 'DC', 'Misc', 'TCOE'];
+            numKeys.forEach(function(key){ d[key] = Number(d[key]) })
+            d.id = id++
+            d.order = order++
+            return d
+        }
+        , pieArray = function(d){
+          return [d.Base, d.OT, d.Other, d.MDV, d.EE, d.DC, d.Misc]
+        }
+        , topNode = null
+
+      d3.csv('mgmtnopolice.csv', format, function(err, rows){
+        if(err) throw err
+        employees = rows
+        d3.csv('nonmgmt.csv', format, function(err, rows){
+          if(err) throw err
+          employees = employees.concat(rows).sort(sortBy('TCOE'))
+          //employees = employees.splice(0, 200)
+          gotEmployees(employees)
+        })
+      })
+      vis.on('mouseover', function(d){
+        if(!node) return
+        node.each(function(d, i){  $(this).removeClass('animated') })
+      }).on("mousemove", function(d){
+        var m = d3.mouse(this)
+        m[1] += 40
+        fisheye.focus(m)
+        if(!node) return
+        node.each(function(d, i){
+          var prev_z = d.fisheye && d.fisheye.z || 1
+          d.fisheye = fisheye(d)
+          d.fisheye.prev_z = prev_z
+        })
+        .filter(function(d){ return d.fisheye.z !== d.fisheye.prev_z })
+        .call(setFisheyePos)
+        .call(function(node){
+          var max, max_el
+          node.each(function(d){
+            if( !max || d.fisheye.z > max.fisheye.z) { max = d; max_el = this }
+          })
+          if(topNode !== max_el) updateTopNode(max_el)
+        })
+      }).on('mouseleave', function(d){
+        node.each(function(d, i){ d.fisheye = {x: d.x, y: d.y, z: 1} })
+        .filter(function(d){ return d.fisheye.z !== d.fisheye.prev_z })
+        .call(setFisheyePos)
+        updateTopNode(null)
+      })
+      function gotEmployees(employees){
+        max = d3.max(employees, function(d){ return d.TCOE })
+        radiusScale.domain([0, max])
+        var cur_tooltip
+        node = vis.selectAll('.node').data(employees, dataKey)
+          .enter().append('div')
+            .attr('class', 'node')
+            .style('background-color', function(d){ return color(d.Title) })
+            .style('border-color', function(d){ return color(d.Title) })
+            .call(updateSize)
+        randomize(node)
+        updatePos(node)
+        setTimeout(function(){
+          grid(node)
+          updatePos(node)
+        },0)
+      }
+      function updateTopNode(el){
+        var $node;
+        if(topNode){
+          $node = $(topNode)
+          $node.removeClass('active')
+          $('.pie', $node).fadeOut(1000, function(){
+            $(this).remove()
+          })
+        }
+        topNode = el
+        if(!topNode) return
+        $node = $(topNode)
+        $node.addClass('active')
+        $node.append(createEmployeePie(topNode))
+        return $node
+      }
+      function createEmployeePie(node){
+        if(!node) return
+        var data = d3.select(node).datum()
+        var w = $(node).width()
+        var h = $(node).height()
+        var pie = d3.select('body').append('svg').attr('class', 'pie')
+          .attr('width', w + 20)
+          .attr('height', h + 20)
+          .style('top', '0px').style('left', '0px')
+        pie.append('circle').attr("r", w / 2)
+          .attr('cx', w / 2).attr('cy', w / 2)
+          .style('fill', 'black')
+          .style('stroke-width', 2)
+          .style('stroke', data.color)
+        var arc = d3.svg.arc().outerRadius(w / 2).innerRadius(0)
+        var arcs = d3.layout.pie().sort(null).value(function(d){ return d})
+        var array = pieArray(data)
+        pie.append('g').attr('transform', 'translate(' + (w / 2) + ',' + (w / 2) + ')')
+          .selectAll('path').data(arcs(array))
+          .enter().append('path').attr('d', arc)
+            .style('fill', function(d, i){ return color(i) })
+        return pie.node()
+      }
+      function updatePos(node){
+        return node.style('-webkit-transform', function(d, i){
+          return 'translate(' + (d.x - d.r) + 'px,' + (d.y - d.r) + 'px)'
+        }).style('z-index', function(d){ return 10000 - d.order })
+      }
+      function setFisheyePos(node){
+        return node.style('-webkit-transform', function(d, i){
+          var tran = 'translate(' + (d.fisheye.x - d.r) + 'px,' + (d.fisheye.y - d.r) + 'px) '
+            + 'scale(' + (1 + (d.fisheye.z - 1) * 3 ) + ')'
+          return tran
+        }).style('z-index', function(d){ return 10000 + Math.round(1000 * d.fisheye.z) })
+      }
+      function updateSize(node){
+        function size(d){ 
+          var z = d.fisheye && d.fisheye.z || 1
+          d.r = z * radius(d)
+          return 2 * d.r + 'px' 
+        }
+        return node.style('width', size).style('height', size)
+      }
+      function randomize(node){
+        node.each(function(d){
+          d.x = Math.random() * width
+          d.y = Math.random() * height
+        })
+      }
+      function grid(node){
+        node.data().forEach(function(d){
+          d.x = x(d.order % x.domain()[1])
+          d.y = y(Math.floor(d.order / x.domain()[1]))
+        })
+      }
+      function sortNodesByMetric(metric, node){
+        var data = node.data().sort(sortBy(metric))
+        data.forEach(function(d, i){ d.order = i })
+        node.data(data, dataKey)
+        return node.call(grid).call(updatePos)
+      }
+      function sortByTitle(node){
+        var nest = d3.nest()
+          .key(function(d){ return d.Title })
+          .sortKeys(d3.ascending)
+          .sortValues(d3.ascending)
+          .key(function(d){ return d.TCOE })
+          .entries(node.data())
+        var data = []
+        nest.forEach(function(leaf){
+          leaf.values.forEach(function(leaf){ data = data.concat(leaf.values) })
+        })
+        data.forEach(function(d, i){ d.order = i })
+        node.data(data, dataKey)
+        return node.call(grid).call(updatePos)
+      }
+      // listen for sort button clicks
+      var sortMetric = 'Income'
+      $('.sort-by').on('click', function(){
+        var newMetric = $(this).data('metric')
+        if(sortMetric === newMetric) return
+        sortMetric = newMetric
+        if(sortMetric === 'title') sortByTitle(node)
+        else sortNodesByMetric(sortMetric, node)
+      })
+    </script>
+  </body>
+</html>
