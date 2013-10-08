@@ -67,7 +67,7 @@
             return 1;
         }}
         , money = d3.format('$,04d')
-        , fisheye = d3.fisheye.circular().radius(100).distortion(5)
+        , fisheye = d3.fisheye.circular().radius(50).distortion(5)
         , id = 0, order = 0
         , format = function(d){
             // Name,Title,Base,OT,Other,MDV,ER,EE,DC,Misc,TCOE,,Average,
@@ -90,6 +90,7 @@
           employees = employees.concat(rows).sort(sortBy('TCOE'))
           //employees = employees.splice(0, 200)
           gotEmployees(employees)
+          fisheyeEffect(vis)
         })
       })
       function gotEmployees(employees){
@@ -109,13 +110,9 @@
         }).attr('r', radius)
       }
       function setFisheyePos(node){
-        function size(d){ 
-          var z = d.fisheye && d.fisheye.z || 1
-          d.r = z * radius(d)
-          return 2 * d.r
-        }
         return node.attr('transform', function(d, i){
-          return 'translate(' + d.fisheye.x + ', ' + d.fisheye.y + ') scale(' + size(d) + ')'
+          var z = d.fisheye && d.fisheye.z || 1
+          return 'translate(' + d.fisheye.x + ', ' + d.fisheye.y + ') scale(' + z + ')'
         })
       }
       function randomize(node){
@@ -160,6 +157,38 @@
         if(sortMetric === 'title') sortByTitle(node)
         else sortNodesByMetric(sortMetric, node)
       })
+
+      // fisheye effect
+      function fisheyeEffect(vis){
+        return vis.on('mouseover', function(d){
+          if(!node) return
+          //node.each(function(d, i){  $(this).removeClass('animated') })
+        }).on("mousemove", function(d){
+          var m = d3.mouse(this)
+          fisheye.focus(m)
+          if(!node) return
+          node.each(function(d, i){
+            var prev_z = d.fisheye && d.fisheye.z || 1
+            d.fisheye = fisheye(d)
+            d.fisheye.prev_z = prev_z
+          })
+          .filter(function(d){ return d.fisheye.z !== d.fisheye.prev_z })
+          .sort(function(a, b){ if(a.fisheye.z === b.fisheye.z ) return 0; return a.fisheye.z > b.fisheye.z ? 1 : -1 })
+          .call(setFisheyePos)
+          .call(function(node){
+            var max, max_el
+            node.each(function(d){
+              if( !max || d.fisheye.z > max.fisheye.z) { max = d; max_el = this }
+            })
+            // if(topNode !== max_el) updateTopNode(max_el)
+          })
+        }).on('mouseleave', function(d){
+          node.each(function(d, i){ d.fisheye = {x: d.x, y: d.y, z: 1} })
+          .filter(function(d){ return d.fisheye.z !== d.fisheye.prev_z })
+          .call(setFisheyePos)
+        })
+      }
+
     </script>
   </body>
 </html>
