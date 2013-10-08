@@ -5,14 +5,10 @@
     <script src="js/fisheye.js"></script>
     <script src="js/jquery.js"></script>
     <style>
-      body{ 
-        margin: 0;
-        font-family: helvetica;
-      }
-      .node {
-        fill: black;
-      }
-      #controls{ position: absolute; bottom: 10px; right: 10px;}
+      body{ margin: 0; font-family: helvetica; }
+      button { outline: none;}
+      .node { fill: black; }
+      #controls{ position: absolute; bottom: 10px; right: 10px; }
       #source{
         position: absolute;
         left: 10px;
@@ -26,24 +22,53 @@
         text-align: center;
         margin: 0;
       }
+      circle { stroke: none; }
+      .node.active circle {
+        stroke-width: 1;
+        stroke: white;
+      }
+      .node.highlighted circle { 
+        stroke: black; 
+        fill: black;
+      }
+      .tooltip{ display: none; }
+      .tooltip .bg{ opacity: 0.7; }
+      .tooltip text{
+        fill: white;
+      }
+      active.tooltip{
+        display: inherit;
+      }
+      .node text{
+        text-anchor: middle;
+        fill: black;
+      }
+      .sort-by.active, .sort-by:active{
+        border: 1px solid #000;
+        background-color: #333;
+        color: white;
+      }
+      .sort-by{
+        border: 1px solid #999;
+      }
     </style>
   </head>
   <body>
     <div id="title">
-      <h1> Salary of every BART employee </h1>
+      <h1> Salary of BART employees </h1>
     </div>
     <div id="controls">
       <p>sort by: 
+        <button class="sort-by active" data-metric="TCOE">Total cost of employee</button>
         <button class="sort-by" data-metric="Base">base</button>
         <button class="sort-by" data-metric="OT">overtime</button>
+        <button class="sort-by" data-metric="OT to Base">overtime to base</button>
         <button class="sort-by" data-metric="MDV">medical, dental, vision</button>
         <button class="sort-by" data-metric="ER">employer contributions to pension</button>
-        <button class="sort-by" data-metric="EE">employee contributions pension</button>
         <button class="sort-by" data-metric="DC">401(k)</button>
         <button class="sort-by" data-metric="Misc">Miscellaneous</button>
         <button class="sort-by" data-metric="Other">other</button>
-        <button class="sort-by" data-metric="TCOE">Total cost of employee</button>
-        <button class="sort-by" data-metric="title">title</button>
+        <button class="sort-by" data-metric="Title">title</button>
       </p>
     </div>
     <div id="source"> 
@@ -53,20 +78,23 @@
       var width = window.innerWidth, height = window.innerHeight
         , vis = d3.select('body').append('svg').attr('class', 'vis')
           .style({ width: width + 'px', height: height + 'px' })
-        , node, max, margin = 50, max_area = 300
+        , node, max, margin = 50, max_area = 300, tooltip
         , color = d3.scale.category20()
         , ident = function(d){ return d }
         , radiusScale = d3.scale.linear().range([0, max_area])
         , areaToRadius = function(area){ return Math.sqrt(area / Math.PI) }
-        , radius = function(d){ return areaToRadius(radiusScale(d.TCOE)) }
+        , radius = function(d){ 
+          var metric = sortMetric
+          if(metric === 'Title') metric = 'TCOE'
+          return areaToRadius(radiusScale(d[metric])) 
+        }
         , x = d3.scale.linear().domain([0, 100]).range([margin, width - margin])
         , y = d3.scale.linear().domain([0, 30]).range([margin, height - margin])
         , dataKey = function(d){ return d.id }
         , sortBy = function(by){ return function(a, b){ 
             if(a[by] === b[by]) return 0; else if(a[by] > b[by]) return -1;
             return 1;
-        }}
-        , money = d3.format('$,04d')
+        }}, money = d3.format('$,04d')
         , fisheye = d3.fisheye.circular().radius(50).distortion(5)
         , id = 0, order = 0
         , format = function(d){
@@ -75,45 +103,88 @@
             numKeys.forEach(function(key){ d[key] = Number(d[key]) })
             d.id = id++
             d.order = order++
+            d['OT to Base'] = d.OT / d.Base
             return d
-        }
-        , pieArray = function(d){
+        }, pieArray = function(d){
           return [d.Base, d.OT, d.Other, d.MDV, d.EE, d.DC, d.Misc]
-        }
-        , topNode = null
+        }, topNode = null
 
       d3.csv('mgmtnopolice.csv', format, function(err, rows){
         if(err) throw err
         employees = rows
         d3.csv('nonmgmt.csv', format, function(err, rows){
           if(err) throw err
-          employees = employees.concat(rows).sort(sortBy('TCOE'))
-          //employees = employees.splice(0, 200)
+          employees = employees.concat(rows)
           gotEmployees(employees)
           fisheyeEffect(vis)
         })
       })
+      function updateRadiusScale(sortMetric){
+        var metric = sortMetric
+        if(metric === 'Title') metric = 'TCOE'
+        radiusScale.domain([0, d3.max(employees, function(d){ return d[metric] })])
+      }
       function gotEmployees(employees){
-        max = d3.max(employees, function(d){ return d.TCOE })
-        radiusScale.domain([0, max])
-        var cur_tooltip
+        updateRadiusScale('TCOE')
         node = vis.selectAll('.node').data(employees, dataKey)
-          .enter().append('circle')
+          .enter().append('g')
             .attr('class', 'node')
             .style('fill', function(d){ return color(d.Title) })
-        node.call(randomize).call(updatePos).call(grid)
-            .transition().duration(2000).call(updatePos)
+        node.append('circle').attr('r', radius)
+        node.call(randomize).call(updatePos).call(sortNodesByMetric.bind(null, 'TCOE'))
+        node.on('click', function(){
+          var node = d3.select('.node.highlighted').classed('highlighted', false).node()
+            , sel = d3.select(this)
+          if(sel.node() !== node) sel.classed('highlighted', !d3.select(this).classed('highlighted'))
+        })
+        vis.call(createTooltip)
+      }
+      function createTooltip(vis){
+        tooltip = vis.append('g').attr('class', 'tooltip')
+        tooltip.append('rect').attr({ width: 130, height: 140, rx: 5, ry: 5, class: 'bg' })
+        var desc = tooltip.append('g').attr('class', 'desc')
+        desc.append('text').attr('class', 'name').text('name: ').attr('transform', 'translate(5,15)')
+        desc.append('text').attr('class', 'title').text('title: ').attr('transform', 'translate(5,35)')
+        desc.append('text').attr('class','main').text('total: ').attr('transform', 'translate(5,55)')
+        return tooltip
+      }
+      function posTooltip(node){
+        if(node.empty()) return
+        var d = node.datum(), text, x = d.fisheye.x, y = d.fisheye.y
+        if(sortMetric === 'OT to Base') text = sortMetric + ': ' 
+          + d3.round(d[sortMetric], 2) + ' ' + 'OT: ' + money(d.OT) 
+          + ' Base:' + money(d.Base)
+        else if(sortMetric === 'Title') text = d.Title
+        else text = sortMetric + ': ' + money(d[sortMetric])
+        if(text === d.Title) text = 'Base: ' + money(d.Base) + ' OT: ' + money(d.OT) + ''
+        tooltip.select('.main').text(text)
+        tooltip.select('.title').text(d.Title)
+        tooltip.select('.name').text(d.Name)
+        var box = tooltip.select('.desc').node().getBBox()
+        box.x -= 10, box.y -= 10, box.width += 20, box.height += 20
+        tooltip.select('rect').attr(box)
+        var offset = radius(d) * d.fisheye.z
+        if( x > width / 2 ) x -= box.width + offset; else x+= offset
+        if( y > height / 2 ) y -= box.height + offset; else y+= offset
+        tooltip.attr('transform', 'translate(' + x + ',' + y + ')')
       }
       function updatePos(node){
-        return node.attr('transform', function(d){
+        node.attr('transform', function(d){
           return 'translate(' + d.x + ',' + d.y + ')'
-        }).attr('r', radius)
+        })
+        updateRadiusScale(sortMetric)
+        node.select('circle').attr('r', radius)
+        return node
       }
       function setFisheyePos(node){
-        return node.attr('transform', function(d, i){
-          var z = d.fisheye && d.fisheye.z || 1
-          return 'translate(' + d.fisheye.x + ', ' + d.fisheye.y + ') scale(' + z + ')'
+        node.attr('transform', function(d, i){
+          return 'translate(' + d.fisheye.x + ', ' + d.fisheye.y + ')'
         })
+        node.select('circle').attr('transform', function(d){
+          var z = d.fisheye && d.fisheye.z || 1
+          return 'scale(' + z + ')'
+        })
+        return node
       }
       function randomize(node){
         node.each(function(d){
@@ -149,19 +220,20 @@
           .transition().duration(2000).call(updatePos)
       }
       // listen for sort button clicks
-      var sortMetric = 'Income'
+      var sortMetric = 'TCOE'
       $('.sort-by').on('click', function(){
         var newMetric = $(this).data('metric')
         if(sortMetric === newMetric) return
         sortMetric = newMetric
-        if(sortMetric === 'title') sortByTitle(node)
+        if(sortMetric === 'Title') sortByTitle(node)
         else sortNodesByMetric(sortMetric, node)
+        $('.sort-by.active').removeClass('active')
+        $(this).addClass('active')
       })
-
-      // fisheye effect
       function fisheyeEffect(vis){
         return vis.on('mouseover', function(d){
           if(!node) return
+          d3.select('.tooltip').style('display', 'inherit')
           //node.each(function(d, i){  $(this).removeClass('animated') })
         }).on("mousemove", function(d){
           var m = d3.mouse(this)
@@ -173,20 +245,27 @@
             d.fisheye.prev_z = prev_z
           })
           .filter(function(d){ return d.fisheye.z !== d.fisheye.prev_z })
-          .sort(function(a, b){ if(a.fisheye.z === b.fisheye.z ) return 0; return a.fisheye.z > b.fisheye.z ? 1 : -1 })
+          .sort(function(a, b){ return a.fisheye.z > b.fisheye.z ? 1 : -1 })
           .call(setFisheyePos)
           .call(function(node){
-            var max, max_el
+            var max, maxNode
             node.each(function(d){
-              if( !max || d.fisheye.z > max.fisheye.z) { max = d; max_el = this }
+              if( !max || d.fisheye.z > max.fisheye.z) { max = d; maxNode = this }
             })
-            // if(topNode !== max_el) updateTopNode(max_el)
+            if(topNode !== maxNode) updateTopNode(maxNode)
           })
         }).on('mouseleave', function(d){
+          d3.select('.tooltip').style('display', 'none')
           node.each(function(d, i){ d.fisheye = {x: d.x, y: d.y, z: 1} })
           .filter(function(d){ return d.fisheye.z !== d.fisheye.prev_z })
           .call(setFisheyePos)
         })
+      }
+
+      function updateTopNode(maxNode){
+        if(topNode) topNode.classed('active', false)
+        topNode = d3.select(maxNode).classed('active', true)
+        topNode.call(posTooltip)
       }
 
     </script>
