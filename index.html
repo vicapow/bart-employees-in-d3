@@ -1,6 +1,7 @@
 <!doctype HTML>
 <html>
   <head>
+    <title>Salary of Every BART Employee</title>
     <script src="js/d3.js" charset="utf-8"></script>
     <script src="js/fisheye.js"></script>
     <script src="js/jquery.js"></script>
@@ -51,11 +52,16 @@
       .sort-by{
         border: 1px solid #999;
       }
+      .share{ margin-top: 10px; position: absolute; right: 10px;}
     </style>
   </head>
   <body>
     <div id="title">
-      <h1> Salary of BART employees </h1>
+      <div class="share">
+        <a href="https://twitter.com/share" class="twitter-share-button" data-via="vicapow" data-hashtags="hackthebart">Tweet</a>
+        <script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+      </div>
+      <h1>Salary of Every BART Employee</h1>
     </div>
     <div id="controls">
       <p>sort by: 
@@ -83,6 +89,7 @@
         , ident = function(d){ return d }
         , radiusScale = d3.scale.linear().range([0, max_area])
         , areaToRadius = function(area){ return Math.sqrt(area / Math.PI) }
+        , fisheye = d3.fisheye.circular().radius(30).distortion(2)
         , radius = function(d){ 
           var metric = sortMetric
           if(metric === 'Title') metric = 'TCOE'
@@ -95,7 +102,6 @@
             if(a[by] === b[by]) return 0; else if(a[by] > b[by]) return -1;
             return 1;
         }}, money = d3.format('$,04d')
-        , fisheye = d3.fisheye.circular().radius(50).distortion(5)
         , id = 0, order = 0
         , format = function(d){
             // Name,Title,Base,OT,Other,MDV,ER,EE,DC,Misc,TCOE,,Average,
@@ -133,7 +139,7 @@
         node.append('circle').attr('r', radius)
         node.call(randomize).call(updatePos).call(sortNodesByMetric.bind(null, 'TCOE'))
         node.on('click', function(){
-          var node = d3.select('.node.highlighted').classed('highlighted', false).node()
+          var node // = d3.select('.node.highlighted').classed('highlighted', false).node()
             , sel = d3.select(this)
           if(sel.node() !== node) sel.classed('highlighted', !d3.select(this).classed('highlighted'))
         })
@@ -267,7 +273,17 @@
         topNode = d3.select(maxNode).classed('active', true)
         topNode.call(posTooltip)
       }
-
     </script>
+<!-- google analytics -->
+<script type="text/javascript">
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-39250901-2']);
+  _gaq.push(['_trackPageview']);
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+</script>
   </body>
 </html>
