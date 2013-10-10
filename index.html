@@ -54,11 +54,20 @@
       .sort-by{
         border: 1px solid #999;
       }
-      .share-left{ margin-top: 20px; position: absolute; left: 10px;}
+      .share-left{ margin-top: 20px; position: absolute; left: 20px;}
       .share-right{ margin-top: 20px; position: absolute; right: 10px;}
+      .fb-share-right{ margin-top: 20px; position: absolute; right: 170px;}
     </style>
   </head>
   <body>
+<div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/all.js#xfbml=1&appId=385171041519781";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
     <div id="title">
       <div class="share-left">
         <a href="https://twitter.com/vicapow" class="twitter-follow-button" data-show-count="false">Follow @vicapow</a>
@@ -67,6 +76,9 @@
       <div class="share-right">
         <a href="https://twitter.com/share" class="twitter-share-button" data-via="vicapow" data-hashtags="hackthebart">Tweet</a>
         <script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+      </div>
+      <div class="fb-share-right">
+        <div class="fb-like" data-href="http://blog.vctr.me/bart/" data-width="The pixel width of the plugin" data-height="The pixel height of the plugin" data-colorscheme="light" data-layout="button_count" data-action="like" data-show-faces="true" data-send="true"></div>
       </div>
       <h1>Salary of Every BART Employee</h1>
     </div>
