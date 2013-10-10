@@ -67,8 +67,8 @@
     <div id="controls">
       <p>color by: 
         <select class="color">
-          <option value="Title"> Title </option>
           <option value="Union"> Union </option>
+          <option value="Title"> Title </option>
         </select>
         sort by: 
         <button class="sort-by active" data-metric="TCOE">Total cost of employee</button>
@@ -97,7 +97,7 @@
         , radiusScale = d3.scale.linear().range([0, max_area])
         , areaToRadius = function(area){ return Math.sqrt(area / Math.PI) }
         , fisheye = d3.fisheye.circular().radius(30).distortion(2)
-        , colorMetric = 'Title'
+        , colorMetric = 'Union'
         , radius = function(d){ 
           var metric = sortMetric
           if(metric === 'Title' || metric === 'Union') metric = 'TCOE'
