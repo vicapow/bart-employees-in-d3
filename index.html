@@ -9,7 +9,7 @@
       body{ margin: 0; font-family: helvetica; }
       button, select { outline: none;}
       .node { fill: black; }
-      #controls{ position: absolute; bottom: 10px; right: 10px; }
+      #controls{ position: absolute; bottom: 10px; right: 10px; text-align: right;}
       #source{
         position: absolute;
         left: 10px;
@@ -21,7 +21,7 @@
       }
       #title h1{
         text-align: center;
-        margin: 0;
+        margin: 10px;
       }
       circle { stroke: none; }
       .node.active circle {
@@ -53,12 +53,17 @@
       .sort-by{
         border: 1px solid #999;
       }
-      .share{ margin-top: 10px; position: absolute; right: 10px;}
+      .share-left{ margin-top: 20px; position: absolute; left: 10px;}
+      .share-right{ margin-top: 20px; position: absolute; right: 10px;}
     </style>
   </head>
   <body>
     <div id="title">
-      <div class="share">
+      <div class="share-left">
+        <a href="https://twitter.com/vicapow" class="twitter-follow-button" data-show-count="false">Follow @vicapow</a>
+<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
+      </div>
+      <div class="share-right">
         <a href="https://twitter.com/share" class="twitter-share-button" data-via="vicapow" data-hashtags="hackthebart">Tweet</a>
         <script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script>
       </div>
@@ -91,7 +96,7 @@
       var width = window.innerWidth, height = window.innerHeight
         , vis = d3.select('body').append('svg').attr('class', 'vis')
           .style({ width: width + 'px', height: height + 'px' })
-        , node, max, margin = 50, max_area = 300, tooltip
+        , node, max, margin = 30, max_area = 300, tooltip, margin_top = 70, margin_bottom = 100
         , color = d3.scale.category20()
         , ident = function(d){ return d }
         , radiusScale = d3.scale.linear().range([0, max_area])
@@ -104,7 +109,7 @@
           return areaToRadius(radiusScale(d[metric])) 
         }
         , x = d3.scale.linear().domain([0, 100]).range([margin, width - margin])
-        , y = d3.scale.linear().domain([0, 30]).range([margin, height - margin])
+        , y = d3.scale.linear().domain([0, 28]).range([margin_top, height - margin_bottom])
         , dataKey = function(d){ return d.id }
         , sortBy = function(by){ return function(a, b){ 
             if(a[by] === b[by]) return 0; else if(a[by] > b[by]) return -1;
@@ -265,6 +270,14 @@
         if(newMetric === colorMetric) return
         colorMetric = newMetric
         node.transition().duration(2000).call(updateColor)
+      })
+      $(window).resize(function(){
+        width = window.innerWidth
+        height = window.innerHeight
+        vis.style({ width: width + 'px', height: height + 'px' })
+        x.range([margin, width - margin])
+        y.range([margin_top, height - margin_bottom])
+        node.call(grid).call(updatePos)
       })
       function fisheyeEffect(vis){
         return vis.on('mouseover', function(d){
