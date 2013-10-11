@@ -131,20 +131,27 @@
       var width = window.innerWidth, height = window.innerHeight
         , vis = d3.select('body').append('svg').attr('class', 'vis')
           .style({ width: width + 'px', height: height + 'px' })
-        , node, max, margin = 30, max_area = 300, tooltip, margin_top = 120, margin_bottom = 50
+        , node, max, margin = 30, max_area = 300, tooltip, margin_top = 120
+        , margin_bottom = 50, steps_x = 100, steps_y = 28
         , color = d3.scale.category20()
-        , ident = function(d){ return d }
-        , radiusScale = d3.scale.linear().range([0, max_area])
+        , calcBestArea = function(){
+          var r1 = (width / steps_x) / 1.4
+            , r2 = (height / steps_y) / 1.4
+            , r = r1 < r2 ? r1 : r2
+          return Math.PI * r * r
+        }
+        , max_area = calcBestArea()
+        , areaScale = d3.scale.linear().range([0, max_area])
         , areaToRadius = function(area){ return Math.sqrt(area / Math.PI) }
         , fisheye = d3.fisheye.circular().radius(30).distortion(2)
         , colorMetric = 'Union'
         , radius = function(d){ 
           var metric = sortMetric
           if(metric === 'Title' || metric === 'Union') metric = 'TCOE'
-          return areaToRadius(radiusScale(d[metric])) 
+          return areaToRadius(areaScale(d[metric])) 
         }
-        , x = d3.scale.linear().domain([0, 100]).range([margin, width - margin])
-        , y = d3.scale.linear().domain([0, 28]).range([margin_top, height - margin_bottom])
+        , x = d3.scale.linear().domain([0, steps_x]).range([margin, width - margin])
+        , y = d3.scale.linear().domain([0, steps_y]).range([margin_top, height - margin_bottom])
         , dataKey = function(d){ return d.id }
         , sortBy = function(by){ return function(a, b){ 
             if(a[by] === b[by]) return 0; else if(a[by] > b[by]) return -1;
@@ -160,20 +167,23 @@
             d['OT to Base'] = d.OT / d.Base
             return d
         }, topNode = null
-
+      if ( window.self !== window.top ){
+        // we're in an iframe! oh on! hide the follow button
+        $('.share-left').hide()
+      }
       d3.csv('bart-comp-all.csv', format, function(err, rows){
         if(err) throw err
         employees = rows
         gotEmployees(employees)
         fisheyeEffect(vis)
       })
-      function updateRadiusScale(sortMetric){
+      function updateAreaScale(sortMetric){
         var metric = sortMetric
         if(metric === 'Title' || metric === 'Union') metric = 'TCOE'
-        radiusScale.domain([0, d3.max(employees, function(d){ return d[metric] })])
+        areaScale.domain([0, d3.max(employees, function(d){ return d[metric] })])
       }
       function gotEmployees(employees){
-        updateRadiusScale('TCOE')
+        updateAreaScale('TCOE')
         node = vis.selectAll('.node').data(employees, dataKey)
           .enter().append('g')
             .attr('class', 'node')
@@ -200,12 +210,12 @@
       function posTooltip(node){
         if(node.empty()) return
         var d = node.datum(), text, x = d.fisheye.x, y = d.fisheye.y
-        if(sortMetric === 'OT to Base') text = sortMetric + ': ' 
-          + d3.round(d[sortMetric], 2) + ' ' + 'OT: ' + money(d.OT) 
-          + ' Base:' + money(d.Base)
+        if(sortMetric === 'OT to Base') text = 'OT to Base' + ': ' 
+          + d3.format('%')(d[sortMetric], 2) + ', ' + 'OT: ' + money(d.OT) 
+          + ' Base: ' + money(d.Base)
         else if(sortMetric === 'Title' || sortMetric === 'Union') text = d.Title
         else text = sortMetric + ': ' + money(d[sortMetric])
-        if(text === d.Title || text === d.Union) text = 'Base: ' + money(d.Base) + ' OT: ' + money(d.OT) + ''
+        if(text === d.Title || text === d.Union) text = 'Base: ' + money(d.Base) + ' OT: ' + money(d.OT)
         tooltip.select('.main').text(text)
         tooltip.select('.title').text(d.Title)
         tooltip.select('.name').text(d.Name)
@@ -222,7 +232,7 @@
         node.attr('transform', function(d){
           return 'translate(' + d.x + ',' + d.y + ')'
         })
-        updateRadiusScale(sortMetric)
+        updateAreaScale(sortMetric)
         node.select('circle').attr('r', radius)
         return node
       }
@@ -311,6 +321,8 @@
         x.range([margin, width - margin])
         y.range([margin_top, height - margin_bottom])
         node.call(grid).call(updatePos)
+        updateMaxArea()
+        node.select('circle').attr('r', radius)
       })
       function fisheyeEffect(vis){
         return vis.on('mouseover', function(d){
@@ -342,6 +354,10 @@
           .filter(function(d){ return d.fisheye.z !== d.fisheye.prev_z })
           .call(setFisheyePos)
         })
+      }
+      function updateMaxArea(){
+        max_area = calcBestArea()
+        areaScale.range([0, max_area])
       }
 
       function updateTopNode(maxNode){
