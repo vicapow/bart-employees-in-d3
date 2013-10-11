@@ -10,7 +10,11 @@
       body{ margin: 0; font-family: helvetica; }
       button, select { outline: none;}
       .node { fill: black; }
-      #controls{ text-align: center; }
+      #controls{ 
+        text-align: center;
+        font-size: 20px;
+        font-weight: bold;
+      }
       #source{
         position: absolute;
         right: 10px;
@@ -106,17 +110,18 @@
         </select>
         sort by: 
         <select class="sort-by">
-          <option value="TCOE">total cost of employee</option>
-          <option value="Base">base</option>
-          <option value="OT">overtime</option>
-          <option value="OT to Base">overtime to base</option>
-          <option value="MDV">medical, dental, vision</option>
-          <option value="ER">employer contributions to pension</option>
+          <option value="TCOE">Total cost of employee</option>
+          <option value="Base">Base pay</option>
+          <option value="OT">Overtime pay</option>
+          <option value="Other">Other</option>
+          <option value="OT to Base">Overtime to base pay</option>
+          <option value="OT + Base + Other">Base + OT + Other</option>
+          <option value="MDV">Medical, dental, vision</option>
+          <option value="ER">Employer contributions to pension</option>
           <option value="DC">401(k)</option>
-          <option value="Misc">miscellaneous</option>
-          <option value="Other">other</option>
-          <option value="Title">title</option>
-          <option value="Union">union</option>
+          <option value="Misc">Miscellaneous</option>
+          <option value="Title">Title</option>
+          <option value="Union">Union</option>
         </select>
       </p>
     </div>
@@ -158,6 +163,7 @@
             return 1;
         }}, money = d3.format('$,04d')
         , id = 0, order = 0
+        , sortMetric = $('.sort-by').val()
         , format = function(d){
             // Name,Title,Base,OT,Other,MDV,ER,EE,DC,Misc,TCOE,,Average,
             var numKeys = ['Base', 'OT', 'Other', 'MDV', 'ER', 'EE', 'DC', 'Misc', 'TCOE'];
@@ -165,6 +171,7 @@
             d.id = id++
             d.order = order++
             d['OT to Base'] = d.OT / d.Base
+            d['OT + Base + Other'] = d.OT + d.Base + d.Other
             return d
         }, topNode = null
       if ( window.self !== window.top ){
@@ -183,13 +190,13 @@
         areaScale.domain([0, d3.max(employees, function(d){ return d[metric] })])
       }
       function gotEmployees(employees){
-        updateAreaScale('TCOE')
+        updateAreaScale(sortMetric)
         node = vis.selectAll('.node').data(employees, dataKey)
           .enter().append('g')
             .attr('class', 'node')
             .call(updateColor)
         node.append('circle').attr('r', radius)
-        node.call(randomize).call(updatePos).call(sortNodesByMetric.bind(null, 'TCOE'))
+        node.call(randomize).call(updatePos).call(sortNodesByMetric.bind(null, sortMetric))
         node.on('click', function(){
           var node // = d3.select('.node.highlighted').classed('highlighted', false).node()
             , sel = d3.select(this)
@@ -298,7 +305,6 @@
           .transition().duration(2000).call(updatePos)
       }
       // listen for sort button clicks
-      var sortMetric = 'TCOE'
       $('.sort-by').on('change', function(){
         var newMetric = $(this).val()
         if(sortMetric === newMetric) return
