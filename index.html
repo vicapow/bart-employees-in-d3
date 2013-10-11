@@ -155,7 +155,7 @@
         , vis = d3.select('body').append('svg').attr('class', 'vis')
           .style({ width: width + 'px', height: height + 'px' })
         , node, max, margin = 30, max_area = 300, tooltip
-        , margin_top = 20
+        , margin_top = (width > 450) ? 120 : 20
         , margin_bottom = 50, steps_x = 100, steps_y = 28
         , color = d3.scale.category20()
         , calcBestArea = function(){
