@@ -10,7 +10,7 @@
       body{ margin: 0; font-family: helvetica; }
       button, select { outline: none;}
       .node { fill: black; }
-      #controls{ position: absolute; bottom: 10px; right: 10px; text-align: right;}
+      #controls{ text-align: center; }
       #source{
         position: absolute;
         left: 10px;
@@ -18,7 +18,12 @@
       }
       #title{
         width: 100%;
+      }
+      .vis{
         position: absolute;
+        left: 0px;
+        top: 0px;
+        z-index: -10;
       }
       #title h1{
         text-align: center;
@@ -46,13 +51,13 @@
         text-anchor: middle;
         fill: black;
       }
-      .sort-by.active, .sort-by:active{
-        border: 1px solid #000;
-        background-color: #333;
-        color: white;
-      }
+      select{ font-size: 20px; }
       .sort-by{
-        border: 1px solid #999;
+/*        border: 1px solid #999;
+        background-color: green;
+        -webkit-appearance: none;
+        padding: 5px;
+        border-radius: 0px;*/
       }
       .share-left{ margin-top: 20px; position: absolute; left: 20px;}
       .share-right{ margin-top: 20px; position: absolute; right: 10px;}
@@ -89,17 +94,19 @@
           <option value="Title"> Title </option>
         </select>
         sort by: 
-        <button class="sort-by active" data-metric="TCOE">Total cost of employee</button>
-        <button class="sort-by" data-metric="Base">base</button>
-        <button class="sort-by" data-metric="OT">overtime</button>
-        <button class="sort-by" data-metric="OT to Base">overtime to base</button>
-        <button class="sort-by" data-metric="MDV">medical, dental, vision</button>
-        <button class="sort-by" data-metric="ER">employer contributions to pension</button>
-        <button class="sort-by" data-metric="DC">401(k)</button>
-        <button class="sort-by" data-metric="Misc">Miscellaneous</button>
-        <button class="sort-by" data-metric="Other">other</button>
-        <button class="sort-by" data-metric="Title">title</button>
-        <button class="sort-by" data-metric="Union">union</button>
+        <select class="sort-by">
+          <option value="TCOE">total cost of employee</option>
+          <option value="Base">base</option>
+          <option value="OT">overtime</option>
+          <option value="OT to Base">overtime to base</option>
+          <option value="MDV">medical, dental, vision</option>
+          <option value="ER">employer contributions to pension</option>
+          <option value="DC">401(k)</option>
+          <option value="Misc">miscellaneous</option>
+          <option value="Other">other</option>
+          <option value="Title">title</option>
+          <option value="Union">union</option>
+        </select>
       </p>
     </div>
     <div id="source"> 
@@ -109,7 +116,7 @@
       var width = window.innerWidth, height = window.innerHeight
         , vis = d3.select('body').append('svg').attr('class', 'vis')
           .style({ width: width + 'px', height: height + 'px' })
-        , node, max, margin = 30, max_area = 300, tooltip, margin_top = 70, margin_bottom = 100
+        , node, max, margin = 30, max_area = 300, tooltip, margin_top = 120, margin_bottom = 50
         , color = d3.scale.category20()
         , ident = function(d){ return d }
         , radiusScale = d3.scale.linear().range([0, max_area])
@@ -267,15 +274,13 @@
       }
       // listen for sort button clicks
       var sortMetric = 'TCOE'
-      $('.sort-by').on('click', function(){
-        var newMetric = $(this).data('metric')
+      $('.sort-by').on('change', function(){
+        var newMetric = $(this).val()
         if(sortMetric === newMetric) return
         sortMetric = newMetric
         if(sortMetric === 'Title') sortByTitle(node)
         else if(sortMetric === 'Union') sortByUnion(node)
         else sortNodesByMetric(sortMetric, node)
-        $('.sort-by.active').removeClass('active')
-        $(this).addClass('active')
       })
       $('.color').on('change', function(){
         var newMetric = $(this).val()
