@@ -77,6 +77,24 @@
           top: 60px;
         }
       }
+      @media(max-width: 400px){
+        .share-left, .share-right, .fb-share-right{
+          display: none;
+        }
+        h1{
+          display: none;
+        }
+        #controls{
+          font-size: 10px;
+          position: absolute;
+          top: inherit;
+          bottom: 5px;
+        }
+        #controls select{ width: 100px;}
+        #source{
+          display: none;
+        }
+      }
     </style>
   </head>
   <body>
@@ -136,7 +154,8 @@
       var width = window.innerWidth, height = window.innerHeight
         , vis = d3.select('body').append('svg').attr('class', 'vis')
           .style({ width: width + 'px', height: height + 'px' })
-        , node, max, margin = 30, max_area = 300, tooltip, margin_top = 120
+        , node, max, margin = 30, max_area = 300, tooltip
+        , margin_top = 20
         , margin_bottom = 50, steps_x = 100, steps_y = 28
         , color = d3.scale.category20()
         , calcBestArea = function(){
@@ -175,7 +194,7 @@
             return d
         }, topNode = null
       if ( window.self !== window.top ){
-        // we're in an iframe! oh on! hide the follow button
+        // we're in an iframe! oh on! hide the twitter follow button
         $('.share-left').hide()
       }
       d3.csv('bart-comp-all.csv', format, function(err, rows){
@@ -323,6 +342,8 @@
       $(window).resize(function(){
         width = window.innerWidth
         height = window.innerHeight
+        if(width < 450) margin_top = 20
+        else margin_top = 120
         vis.style({ width: width + 'px', height: height + 'px' })
         x.range([margin, width - margin])
         y.range([margin_top, height - margin_bottom])
