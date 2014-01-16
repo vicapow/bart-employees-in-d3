@@ -1,5 +1,7 @@
 # Bart strike visualization code
 
+see the original at [my blog](http://blog.vctr.me/bart)
+
 to run on your own computer:
 
 1.) you'll need to run the site through a server. this is because of a browser security restriction imposed to prevent files being loaded directly from your computer like (file:///Documents/...) from random websites. To side step this issue, we'll need to load the data file (the .csv file) from a web server. The simplest way is to do this is to use the following python command from the command line (assuming you're already inside of the project directory and using OS X or some other Unix system.)
